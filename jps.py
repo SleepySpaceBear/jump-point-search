@@ -1,5 +1,5 @@
 import numpy as np
-import PIL as pil 
+import PIL.Image as pil 
 from sortedcontainers import SortedList
 import time
 
@@ -7,7 +7,7 @@ class GridMap(object):
     def __init__(self, image):
         # image is a path to an image
         if isinstance(image, str):
-            self.map = np.where(np.asarray(pil.Image.open(image)) != 0, 1, 0)[:,:,0]
+            self.map = np.where(np.asarray(pil.open(image)) != 0, 1, 0)[:,:,0]
         else:
             self.map = np.asarray(image)
     
@@ -45,16 +45,18 @@ def euclidean_distance(a, b):
 
 
 def jps(grid, start, goal, heuristic_fn=euclidean_distance, max_iterations=10000):
-"""
-Performs Jump-Point Search on the grid map to find a path between the start and the goal. 
-params:
-    grid            - the grid to search on. 
-                      requires two methods, is_obstacle(x: tuple or np.array) and get_neighbors(x : tuple or np.array)
-    start           - the start location as a 2D tuple or np.array
-    goal            - the goal location as a 2D tuple or a np.array
-    heuristic_fn    - the heuristic function to use
-    max_iterations  - the max number of iterations
-"""
+    """
+    Performs Jump-Point Search on the grid map to find a path between the start and the goal. 
+    params:
+        grid            - the grid to search on 
+                          requires two methods: 
+                            - is_obstacle(x: tuple or np.array)
+                            - get_neighbors(x : tuple or np.array)
+        start           - the start location as a 2D tuple or np.array
+        goal            - the goal location as a 2D tuple or a np.array
+        heuristic_fn    - the heuristic function to use
+        max_iterations  - the max number of iterations
+    """
 
     def direction(a, b):
         d = np.asarray(b) - np.asarray(a)
@@ -87,66 +89,7 @@ params:
             return False
         
         return True
-
-    def jps_has_forced_neighbors(grid, x, p):
-        d = direction(p,x)
-        
-        # to check for forced neighbors, we just need to check if certain locations have obstacles
-        # the locations to check are determined by the direction of travel
-        
-        # moving vertically
-        # need to check our left and right neighbors for obstacles
-        if d[0] == 0:
-            if grid.is_obstacle(x + np.asarray([1,0])) or grid.is_obstacle(x - np.asarray([1,0])):
-                return True
-            else:
-                return False
-        # moving horizontally
-        # need to check our above and below neighbors for obstacles
-        elif d[1] == 0:
-            if grid.is_obstacle(x + np.asarray([0,1])) or grid.is_obstacle(x - np.asarray([0,1])):
-                return True
-            else:
-                return False
-        # moving diagonally
-        # need to check the neighbors we share with the parent
-        else:
-            if grid.is_obstacle(np.asarray([x[0], p[1]])) or grid.is_obstacle(np.asarray([p[0], x[1]])):
-                return True
-            else:
-                False
-
-    def jps_jump(grid, x, d, s, g):
-        n = np.asarray(x) + d
-     
-        # n is an obstacle
-        if grid.is_obstacle(n):
-            # print(f"Obstacle: {n}")
-            return None
-        
-        # we've reached the goal
-        if (n == np.asarray(g)).all():
-            # print(f"Goal: {n}:")
-            return n
-        
-        # n has forced neighbors
-        if jps_has_forced_neighbors(grid, n, x):
-            return n
-        
-        # if d is diagonal (i.e. if d = (1,1), (1, -1), (-1, 1) or (-1, -1))
-        if d[0] != 0 and d[1] != 0:
-            d_1 = np.array([d[0], 0])
-            if jps_jump(grid, n, d_1, s, g) is not None:
-                # print(f"Has orthogonal jump point: {n}")
-                return n
-            
-            d_2 = np.array([0, d[1]])
-            if jps_jump(grid, n, d_2, s, g) is not None:
-                # print(f"Has orthogonal jump point: {n}")
-                return n
-        
-        return jps_jump(grid, n, d, s, g)
-        
+    
     def jps_get_pruned_neighbors(grid, x, d):
         pruned = []
         x = np.asarray(x)
@@ -211,6 +154,50 @@ params:
                 pruned.append(n4)
         return pruned
 
+    def jps_has_forced_neighbors(grid, x, d):
+        num_neighbors = len(jps_get_pruned_neighbors(grid, x, d))
+        if (d[0] == 0 or d[1] == 0):
+            if num_neighbors > 1:
+                return True
+            else:
+                return False
+        else:
+            if num_neighbors > 3:
+                return True
+            else:
+                return False
+    
+    def jps_jump(grid, x, d, s, g):
+        n = np.asarray(x) + d
+     
+        # n is an obstacle
+        if grid.is_obstacle(n):
+            # print(f"Obstacle: {n}")
+            return None
+        
+        # we've reached the goal
+        if (n == np.asarray(g)).all():
+            # print(f"Goal: {n}:")
+            return n
+        
+        # n has forced neighbors
+        if jps_has_forced_neighbors(grid, n, d):
+            return n
+        
+        # if d is diagonal (i.e. if d = (1,1), (1, -1), (-1, 1) or (-1, -1))
+        if d[0] != 0 and d[1] != 0:
+            d_1 = np.array([d[0], 0])
+            if jps_jump(grid, n, d_1, s, g) is not None:
+                # print(f"Has orthogonal jump point: {n}")
+                return n
+            
+            d_2 = np.array([0, d[1]])
+            if jps_jump(grid, n, d_2, s, g) is not None:
+                # print(f"Has orthogonal jump point: {n}")
+                return n
+        
+        return jps_jump(grid, n, d, s, g)    
+
     def jps_get_successors(grid, x, parent, start, goal):
         if parent is None:
             return grid.get_neighbors(x)
@@ -234,6 +221,7 @@ params:
                     return [n]
         
         return successors
+    
     stime = time.time()
     
     # Cost function: distance from start (q[0]) + heuristic cost (q[1])
@@ -271,7 +259,7 @@ params:
             visited.add(tuple(statesN[-1]))
         
         # Then add new paths to Q from N (and its children)
-        for c in successor_fn(grid, statesN[-1], statesN[-2] if len(statesN) >= 2 else None, start, goal):
+        for c in jps_get_successors(grid, statesN[-1], statesN[-2] if len(statesN) >= 2 else None, start, goal):
             c = tuple(c)
             if c in visited:
                 continue
