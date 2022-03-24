@@ -159,7 +159,8 @@ def jps(grid, start, goal, heuristic_fn=euclidean_distance, max_iterations=10000
         
         # by taking account the direction of travel, we can handle all the rotationally symmetric cases in one go
        
-        # we are moving horizontally, so we are checking if o is an obstacle and adding nearby n if it is
+        # we are moving horizontally, so we are checking if o is an obstacle and if n is not
+        # if so, n is a forced neighbor and we return True
         # _ o n
         # p x _
         # _ o n
@@ -171,7 +172,8 @@ def jps(grid, start, goal, heuristic_fn=euclidean_distance, max_iterations=10000
             o2 = x - np.asarray([1,0])
             if grid.is_obstacle(o2) and not grid.is_obstacle(o2 + d):
                 return True
-        # we are moving vertically, so we are checking if o is an obstacle and adding the nearby n if it is
+        # we are moving vertically, so we are checking if o is an obstacle and n is not
+        # if so, n is a forced neighbor and we return True
         # n _ n
         # o x o
         # _ p _
@@ -183,8 +185,8 @@ def jps(grid, start, goal, heuristic_fn=euclidean_distance, max_iterations=10000
             o2 = x - np.asarray([0,1])
             if grid.is_obstacle(o2) and not grid.is_obstacle(o2 + d):
                 return True
-        # we are moving diagonally, so we are checking if o is an obstacle and adding the nearby n if it is
-        # the numbers are always added unless they are obstacles
+        # we are moving diagonally, so we are checking if o is an obstacle and if n is not
+        # if so, we return True
         # n 1 _
         # o x 2
         # p o n
