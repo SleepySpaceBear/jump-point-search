@@ -155,17 +155,55 @@ def jps(grid, start, goal, heuristic_fn=euclidean_distance, max_iterations=10000
         return pruned
 
     def jps_has_forced_neighbors(grid, x, d):
-        num_neighbors = len(jps_get_pruned_neighbors(grid, x, d))
-        if (d[0] == 0 or d[1] == 0):
-            if num_neighbors > 1:
+        x = np.asarray(x)
+        
+        # by taking account the direction of travel, we can handle all the rotationally symmetric cases in one go
+       
+        # we are moving horizontally, so we are checking if o is an obstacle and adding nearby n if it is
+        # _ o n
+        # p x _
+        # _ o n
+        if d[0] == 0:
+            o1 = x + np.asarray([1,0])
+            if grid.is_obstacle(o1) and not grid.is_obstacle(o1 + d):
                 return True
-            else:
-                return False
+            
+            o2 = x - np.asarray([1,0])
+            if grid.is_obstacle(o2) and not grid.is_obstacle(o2 + d):
+                return True
+        # we are moving vertically, so we are checking if o is an obstacle and adding the nearby n if it is
+        # n _ n
+        # o x o
+        # _ p _
+        elif d[1] == 0:
+            o1 = x + np.asarray([0,1])
+            if grid.is_obstacle(o1) and not grid.is_obstacle(o1 + d):
+                return True
+            
+            o2 = x - np.asarray([0,1])
+            if grid.is_obstacle(o2) and not grid.is_obstacle(o2 + d):
+                return True
+        # we are moving diagonally, so we are checking if o is an obstacle and adding the nearby n if it is
+        # the numbers are always added unless they are obstacles
+        # n 1 _
+        # o x 2
+        # p o n
         else:
-            if num_neighbors > 3:
+            d0 = np.asarray([d[0],0])
+            d1 = np.asarray([0,d[1]])
+                
+            o1 = x - np.asarray(d0)
+            n3 = x - d0 + d1
+            
+            if grid.is_obstacle(o1) and not grid.is_obstacle(n3):
                 return True
-            else:
-                return False
+            
+            o2 = x - np.asarray(d1)
+            n4 = x - d1 + d0
+            
+            if grid.is_obstacle(o2) and not grid.is_obstacle(n4):
+                return True
+        return False
     
     def jps_jump(grid, x, d, s, g):
         n = np.asarray(x) + d
